@@ -16,5 +16,5 @@
       "@babel/plugin-transform-runtime"
     ]
   ],
-  "compact": true
+  "compact": false
 }
