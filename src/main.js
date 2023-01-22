@@ -36,20 +36,20 @@ class AcodePlugin {
     });
 
     this.token = await this.#cacheFile.readFile('utf8');
-    if (this.token) {
-      await this.initFs();
-    }
+    await this.initFs();
   }
 
   async initFs() {
     if (this.#fsInitialized) return;
-    if (!this.token) {
-      await this.updateToken();
-    }
-
     githubFs.remove();
-    githubFs(this.token);
+    githubFs(this.getToken.bind(this));
     this.#fsInitialized = true;
+  }
+
+  async getToken() {
+    if (this.token) return this.token;
+    await this.updateToken();
+    return this.token;
   }
 
   async destroy() {
@@ -61,6 +61,7 @@ class AcodePlugin {
 
   async openRepo() {
     await this.initFs();
+    this.token = await this.getToken();
     pallete(
       this.listRepositories.bind(this),
       this.selectBranch.bind(this),
@@ -72,7 +73,8 @@ class AcodePlugin {
     const [user, repoName] = repo.split('/');
     pallete(
       this.listBranches.bind(this, user, repoName),
-      (branch) => this.openRepoAsFolder(user, repoName, branch),
+      (branch) => this.openRepoAsFolder(user, repoName, branch)
+        .catch(helpers.error),
       'Type to search branch',
     );
   }
@@ -89,7 +91,7 @@ class AcodePlugin {
     const confirmation = await confirm(strings['warning'], 'Delete this gist?');
     if (!confirmation) return;
 
-    const gh = new GitHub({ token: this.token });
+    const gh = await this.#GitHub();
     const gistApi = gh.getGist(gist);
     await gistApi.delete();
     this.#gists = this.#gists.filter(g => g.id !== gist);
@@ -117,7 +119,7 @@ class AcodePlugin {
     const confirmation = await confirm(strings['warning'], 'Delete this file?');
     if (!confirmation) return;
 
-    const gh = new GitHub({ token: this.token });
+    const gh = await this.#GitHub();
     const gistApi = gh.getGist(gist);
     await gistApi.update({
       files: {
@@ -129,8 +131,8 @@ class AcodePlugin {
     window.toast('File deleted');
   }
 
-  async openRepoAsFolder(user, repo, branch) {
-    const cachedRepo = this.#getRepo(user, repo);
+  async openRepoAsFolder(user, repoName, branch) {
+    const cachedRepo = this.#getRepo(user, repoName);
     if (branch === this.NEW) {
       const { from, branch: newBranch } = await multiPrompt(
         strings['create new branch'],
@@ -150,8 +152,8 @@ class AcodePlugin {
         }],
       );
       branch = newBranch;
-      const gh = new GitHub({ token: this.token });
-      const repo = gh.getRepo(user, repo);
+      const gh = await this.#GitHub();
+      const repo = gh.getRepo(user, repoName);
       await repo.createBranch(from, newBranch);
     }
 
@@ -160,14 +162,15 @@ class AcodePlugin {
       return;
     }
 
-    const url = githubFs.constructUrl('repo', user, repo, '/', branch);
+    const url = githubFs.constructUrl('repo', user, repoName, '/', branch);
     openFolder(url, {
-      name: `${user}/${repo}/${branch}`,
+      name: `${user}/${repoName}/${branch}`,
     });
   }
 
   async openGist() {
     await this.initFs();
+    this.token = await this.getToken();
 
     pallete(
       this.listGists.bind(this),
@@ -215,7 +218,7 @@ class AcodePlugin {
       });
 
       helpers.showTitleLoader();
-      const gh = new GitHub({ token: this.token });
+      const gh = await this.#GitHub();
       const gist = gh.getGist();
       const { data } = await gist.create({
         description,
@@ -244,7 +247,7 @@ class AcodePlugin {
                 window.toast(strings['cancelled']);
               }
               helpers.showTitleLoader();
-              const gh = new GitHub({ token: this.token });
+              const gh = await this.#GitHub();
               await gh.getGist(gist).update({
                 files: {
                   [filename]: {
@@ -298,7 +301,7 @@ class AcodePlugin {
     if (this.#repos.length) {
       return [...this.#repos];
     }
-    const gh = new GitHub({ token: this.token });
+    const gh = await this.#GitHub();
     const user = gh.getUser();
     const repos = await user.listRepos();
     const { data } = repos;
@@ -323,7 +326,7 @@ class AcodePlugin {
     if (cachedRepo && cachedRepo.branches) {
       list = [...cachedRepo.branches];
     } else {
-      const gh = new GitHub({ token: this.token });
+      const gh = await this.#GitHub();
       const repo = gh.getRepo(user, repoName);
       const branches = await repo.listBranches();
       const { data } = branches;
@@ -358,7 +361,7 @@ class AcodePlugin {
     if (this.#gists.length) {
       list = [...this.#gists];
     } else {
-      const gh = new GitHub({ token: this.token });
+      const gh = await this.#GitHub();
       const user = gh.getUser();
       const gists = await user.listGists();
       const { data } = gists;
@@ -384,7 +387,7 @@ class AcodePlugin {
     if (cachedGist && cachedGist.files) {
       list = [...cachedGist.files];
     } else {
-      const gh = new GitHub({ token: this.token });
+      const gh = await this.#GitHub();
       const gist = gh.getGist(gistId);
       const { data: { files, owner } } = await gist.read();
 
@@ -431,6 +434,10 @@ class AcodePlugin {
 
   #getGist(gistId) {
     return this.#gists.find(gist => gist.value === gistId);
+  }
+
+  async #GitHub() {
+    return new GitHub({ token: await this.getToken() });
   }
 
   get commands() {

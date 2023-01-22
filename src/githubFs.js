@@ -36,7 +36,6 @@ githubFs.constructUrl = (type, user, repo, path, branch) => {
 };
 
 export default function githubFs(token) {
-
   fsOperation.extend(test, (url) => {
     const { user, type, repo, path, gist } = parseUrl(url);
     if (type === 'repo') {
@@ -89,9 +88,9 @@ export default function githubFs(token) {
    * @returns 
    */
   function readRepo(user, repoAtBranch, path) {
-    const gh = new GitHub({ token });
+    let gh;
+    let repo;
     const [repoName, branch] = repoAtBranch.split('@');
-    const repo = gh.getRepo(user, repoName);
     let sha = '';
     const getSha = async () => {
       if (!sha) {
@@ -100,8 +99,23 @@ export default function githubFs(token) {
       }
     };
 
+    const init = async () => {
+      if (gh) return;
+      gh = new GitHub({ token: await token() });
+      repo = gh.getRepo(user, repoName);
+    }
+
+    const move = async (dest) => {
+      const newUrl = githubFs.constructUrl('repo', user, repoName, dest, branch);
+      if (dest === path) return newUrl;
+      if (dest.startsWith('/')) dest = dest.slice(1);
+      await repo.move(branch, path, dest);
+      return newUrl;
+    }
+
     return {
       async lsDir() {
+        await init();
         const res = await repo.getSha(branch, path);
         const { data } = res;
 
@@ -115,6 +129,7 @@ export default function githubFs(token) {
         });
       },
       async readFile(encoding) {
+        await init();
         await getSha();
         let { data } = await repo.getBlob(sha, 'blob');
         data = await data.arrayBuffer();
@@ -129,6 +144,7 @@ export default function githubFs(token) {
         return data;
       },
       async writeFile(data) {
+        await init();
         await repo.writeFile(branch, path, data, `update ${path}`);
       },
       async createFile(name, data = '') {
@@ -149,6 +165,7 @@ export default function githubFs(token) {
         return githubFs.constructUrl('repo', user, repoName, newPath, branch);
       },
       async createDirectory(dirname) {
+        await init();
         let newPath = path === '' ? dirname : Url.join(path, dirname);
         // check if file exists
         let sha;
@@ -170,18 +187,25 @@ export default function githubFs(token) {
         throw new Error('Not implemented');
       },
       async delete() {
+        await init();
         await getSha();
         await repo.deleteFile(branch, path, `delete ${path}`, sha);
       },
       async moveTo(dest) {
-        throw new Error('Not implemented');
+        await init();
+        const { path: destPath } = parseUrl(dest);
+        const newName = Url.join(destPath, Url.basename(path));
+        const res = await move(newName);
+        return res;
       },
       async renameTo(name) {
-        // rename file
-        await getSha();
-        await repo.move(branch, path, name, 'rename file', sha);
+        await init();
+        const newName = Url.join(Url.dirname(path), name);
+        const res = await move(newName);
+        return res;
       },
       async exists() {
+        await init();
         try {
           await repo.getSha(branch, path);
           return true;
@@ -190,6 +214,7 @@ export default function githubFs(token) {
         }
       },
       async stat() {
+        await init();
         await getSha();
         const content = await repo.getBlob(sha);
         return {
@@ -205,8 +230,8 @@ export default function githubFs(token) {
 
   function readGist(gistId, path) {
     let file;
-    const gh = new GitHub({ token });
-    const gist = gh.getGist(gistId);
+    let gh;
+    let gist;
     const getFile = async () => {
       if (!file) {
         const { data } = await gist.read();
@@ -214,11 +239,18 @@ export default function githubFs(token) {
       }
       return file;
     }
+    const init = async () => {
+      if (gh) return;
+      gh = new GitHub({ token: await token() });
+      gist = gh.getGist(gistId);
+    }
+
     return {
       async lsDir() {
         throw new Error('Not implemented');
       },
       async readFile(encoding, progress) {
+        await init();
         let { content: data } = await getFile();
         const textEncoder = new TextEncoder();
         data = textEncoder.encode(file.content);
@@ -230,6 +262,7 @@ export default function githubFs(token) {
         return data;
       },
       async writeFile(data) {
+        await init();
         await gist.update({
           files: {
             [path]: {
@@ -257,9 +290,11 @@ export default function githubFs(token) {
         throw new Error('Not implemented');
       },
       async exists() {
+        await init();
         return !!await getFile();
       },
       async stat() {
+        await init();
         await getFile();
         return {
           length: file.size,

@@ -173,11 +173,14 @@ class Requestable {
       data = undefined;
     }
 
-    const { url: pureUrl, query = '' } = Url.parse(url);
-    const dateTime = `_datetime=${new Date().getTime()}`;
-    const newQuery = query ? `${query}&${dateTime}` : dateTime;
+    let newUrl = url;
 
-    const newUrl = `${pureUrl}?${newQuery}`;
+    if (method === 'GET') {
+      const { url: pureUrl, query = '' } = Url.parse(url);
+      const dateTime = `_datetime=${new Date().getTime()}`;
+      const newQuery = query ? `${query}&${dateTime}` : `?${dateTime}`;
+      newUrl = `${pureUrl}${newQuery}`;
+    }
 
     const config = {
       url: newUrl,

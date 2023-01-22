@@ -1,0 +1,4 @@
+{
+  "dart.lineLength": 50,
+  "prettier.printWidth": 50,
+}
