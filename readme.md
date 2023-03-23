@@ -14,3 +14,4 @@ Access your gist/repositories without cloning/downloading it. To access search `
 
 - **1.0.2**: Create/Delete file, directory in repository.
 - **1.0.3**: Bugs fixes.
+- **1.1.2**: Ask for commit message.

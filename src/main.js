@@ -30,16 +30,6 @@ class AcodePlugin {
   #gists = [];
 
   async init() {
-    this.settings = appSettings.value[plugin.id];
-
-    if (!this.settings) {
-      this.settings = {
-        askCommitMessage: false,
-      };
-      appSettings.value[plugin.id] = this.settings;
-      appSettings.update();
-    }
-
     this.commands.forEach(command => {
       editorManager.editor.commands.addCommand(command);
     });
@@ -487,6 +477,35 @@ class AcodePlugin {
       }
     ]
   }
+
+  get settings() {
+    const settings = appSettings.value[plugin.id];
+    if (!settings) {
+      appSettings.value[plugin.id] = {
+        askCommitMessage: true,
+      };
+      appSettings.update();
+    }
+    return appSettings.value[plugin.id];
+  }
+
+  get settingsJson() {
+    const list = [
+      {
+        key: 'askCommitMessage',
+        text: 'Ask for commit message',
+        checkbox: this.settings.askCommitMessage,
+      }
+    ];
+
+    return {
+      list,
+      cb: (key, value) => {
+        this.settings[key] = value;
+        appSettings.update();
+      }
+    }
+  }
 }
 
 if (window.acode) {
@@ -497,7 +516,7 @@ if (window.acode) {
     }
     acodePlugin.baseUrl = baseUrl;
     await acodePlugin.init($page, cacheFile, cacheFileUrl);
-  });
+  }, acodePlugin.settingsJson);
   acode.setPluginUnmount(plugin.id, () => {
     acodePlugin.destroy();
   });

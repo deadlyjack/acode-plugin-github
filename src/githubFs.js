@@ -82,6 +82,18 @@ export default function githubFs(token, settings) {
   }
 
   /**
+   * Get commit message from user
+   * @param {string} message 
+   * @returns 
+   */
+  async function getCommitMessage(message) {
+    if (settings.askCommitMessage) {
+      return await prompt('Commit message', message, 'text');
+    }
+    return message;
+  }
+
+  /**
    * 
    * @param {string} user 
    * @param {string} repoAtBranch 
@@ -135,9 +147,6 @@ export default function githubFs(token, settings) {
         let { data } = await repo.getBlob(sha, 'blob');
         data = await data.arrayBuffer();
 
-        // const textEncoder = new TextEncoder();
-        // data = textEncoder.encode(window.atob(data));
-
         if (encoding) {
           return helpers.decodeText(data, encoding);
         }
@@ -145,16 +154,12 @@ export default function githubFs(token, settings) {
         return data;
       },
       async writeFile(data) {
+        const commitMessage = await getCommitMessage(`update ${path}`);
         await init();
-        let commitMessage = `update ${path}`;
-
-        if (settings.askCommitMessage) {
-          commitMessage = await prompt('Commit message', commitMessage, 'text');
-        }
-
         await repo.writeFile(branch, path, data, commitMessage);
       },
       async createFile(name, data = '') {
+        await init();
         const newPath = path === '' ? name : Url.join(path, name);
         // check if file exists
         let sha;
@@ -168,7 +173,8 @@ export default function githubFs(token, settings) {
           throw new Error('File already exists');
         }
 
-        await repo.writeFile(branch, newPath, data, `create ${newPath}`);
+        const commitMessage = await getCommitMessage(`create ${newPath}`);
+        await repo.writeFile(branch, newPath, data, commitMessage);
         return githubFs.constructUrl('repo', user, repoName, newPath, branch);
       },
       async createDirectory(dirname) {
@@ -187,7 +193,8 @@ export default function githubFs(token, settings) {
         }
 
         const createPath = Url.join(newPath, '.gitkeep');
-        await repo.writeFile(branch, createPath, '', `create ${newPath}`);
+        const commitMessage = await getCommitMessage(`create ${newPath}`);
+        await repo.writeFile(branch, createPath, '', commitMessage);
         return githubFs.constructUrl('repo', user, repoName, newPath, branch);
       },
       async copyTo(dest) {
@@ -196,7 +203,8 @@ export default function githubFs(token, settings) {
       async delete() {
         await init();
         await getSha();
-        await repo.deleteFile(branch, path, `delete ${path}`, sha);
+        const commitMessage = await getCommitMessage(`delete ${path}`);
+        await repo.deleteFile(branch, path, commitMessage, sha);
       },
       async moveTo(dest) {
         await init();
