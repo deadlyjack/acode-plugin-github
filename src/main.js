@@ -9,6 +9,7 @@ const helpers = acode.require('helpers');
 const multiPrompt = acode.require('multiPrompt');
 const openFolder = acode.require('openFolder');
 const EditorFile = acode.require('EditorFile');
+const appSettings = acode.require('settings');
 
 if (!Blob.prototype.arrayBuffer) {
   Blob.prototype.arrayBuffer = function () {
@@ -24,25 +25,33 @@ if (!Blob.prototype.arrayBuffer) {
 class AcodePlugin {
   token = '';
   NEW = `${helpers.uuid()}_NEW`;
-  #cacheFile;
   #fsInitialized = false;
   #repos = [];
   #gists = [];
 
-  async init($page, cacheFile) {
-    this.#cacheFile = cacheFile;
+  async init() {
+    this.settings = appSettings.value[plugin.id];
+
+    if (!this.settings) {
+      this.settings = {
+        askCommitMessage: false,
+      };
+      appSettings.value[plugin.id] = this.settings;
+      appSettings.update();
+    }
+
     this.commands.forEach(command => {
       editorManager.editor.commands.addCommand(command);
     });
 
-    this.token = await this.#cacheFile.readFile('utf8');
+    this.token = localStorage.getItem('github-token');
     await this.initFs();
   }
 
   async initFs() {
     if (this.#fsInitialized) return;
     githubFs.remove();
-    githubFs(this.getToken.bind(this));
+    githubFs(this.getToken.bind(this), this.settings);
     this.#fsInitialized = true;
   }
 
@@ -165,6 +174,7 @@ class AcodePlugin {
     const url = githubFs.constructUrl('repo', user, repoName, '/', branch);
     openFolder(url, {
       name: `${user}/${repoName}/${branch}`,
+      saveState: false,
     });
   }
 
@@ -292,7 +302,7 @@ class AcodePlugin {
     if (result) {
       this.token = result;
       this.#fsInitialized = false;
-      await this.#cacheFile.writeFile(result);
+      localStorage.setItem('github-token', result);
       await this.initFs();
     }
   }

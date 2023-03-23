@@ -4,6 +4,7 @@ import { lookup } from 'mime-types';
 const fsOperation = acode.require('fsoperation');
 const Url = acode.require('url');
 const helpers = acode.require('helpers');
+const prompt = acode.require('prompt');
 const test = (url) => /^gh:/.test(url);
 
 githubFs.remove = () => {
@@ -35,7 +36,7 @@ githubFs.constructUrl = (type, user, repo, path, branch) => {
   return url;
 };
 
-export default function githubFs(token) {
+export default function githubFs(token, settings) {
   fsOperation.extend(test, (url) => {
     const { user, type, repo, path, gist } = parseUrl(url);
     if (type === 'repo') {
@@ -145,7 +146,13 @@ export default function githubFs(token) {
       },
       async writeFile(data) {
         await init();
-        await repo.writeFile(branch, path, data, `update ${path}`);
+        let commitMessage = `update ${path}`;
+
+        if (settings.askCommitMessage) {
+          commitMessage = await prompt('Commit message', commitMessage, 'text');
+        }
+
+        await repo.writeFile(branch, path, data, commitMessage);
       },
       async createFile(name, data = '') {
         const newPath = path === '' ? name : Url.join(path, name);
