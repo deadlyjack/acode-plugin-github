@@ -106,7 +106,7 @@ export default function githubFs(token, settings) {
     const [repoName, branch] = repoAtBranch.split('@');
     let sha = '';
     const getSha = async () => {
-      if (!sha) {
+      if (!sha && path) {
         const res = await repo.getSha(branch, path);
         sha = res.data.sha;
       }
@@ -142,6 +142,7 @@ export default function githubFs(token, settings) {
         });
       },
       async readFile(encoding) {
+        if (!path) throw new Error('Cannot read root directory')
         await init();
         await getSha();
         let { data } = await repo.getBlob(sha, 'blob');
@@ -154,6 +155,7 @@ export default function githubFs(token, settings) {
         return data;
       },
       async writeFile(data) {
+        if (!path) throw new Error('Cannot write to root directory')
         const commitMessage = await getCommitMessage(`update ${path}`);
         await init();
         await repo.writeFile(branch, path, data, commitMessage);
@@ -201,12 +203,14 @@ export default function githubFs(token, settings) {
         throw new Error('Not implemented');
       },
       async delete() {
+        if (!path) throw new Error('Cannot delete root');
         await init();
         await getSha();
         const commitMessage = await getCommitMessage(`delete ${path}`);
         await repo.deleteFile(branch, path, commitMessage, sha);
       },
       async moveTo(dest) {
+        if (!path) throw new Error('Cannot move root');
         await init();
         const { path: destPath } = parseUrl(dest);
         const newName = Url.join(destPath, Url.basename(path));
@@ -214,12 +218,14 @@ export default function githubFs(token, settings) {
         return res;
       },
       async renameTo(name) {
+        if (!path) throw new Error('Cannot rename root');
         await init();
         const newName = Url.join(Url.dirname(path), name);
         const res = await move(newName);
         return res;
       },
       async exists() {
+        if (!path) return true;
         await init();
         try {
           await repo.getSha(branch, path);
@@ -229,6 +235,14 @@ export default function githubFs(token, settings) {
         }
       },
       async stat() {
+        if (!path) {
+          return {
+            length: 0,
+            name: `github/${user}/${repoName}`,
+            isDirectory: true,
+            isFile: false,
+          }
+        }
         await init();
         await getSha();
         const content = await repo.getBlob(sha);
