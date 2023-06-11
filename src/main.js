@@ -4,7 +4,7 @@ import githubFs from './githubFs';
 
 const prompt = acode.require('prompt');
 const confirm = acode.require('confirm');
-const pallete = acode.require('pallete');
+const palette = acode.require('pallete');
 const helpers = acode.require('helpers');
 const multiPrompt = acode.require('multiPrompt');
 const openFolder = acode.require('openFolder');
@@ -61,7 +61,7 @@ class AcodePlugin {
   async openRepo() {
     await this.initFs();
     this.token = await this.getToken();
-    pallete(
+    palette(
       this.listRepositories.bind(this),
       this.selectBranch.bind(this),
       'Type to search repository',
@@ -70,7 +70,7 @@ class AcodePlugin {
 
   async selectBranch(repo) {
     const [user, repoName] = repo.split('/');
-    pallete(
+    palette(
       this.listBranches.bind(this, user, repoName),
       (branch) => this.openRepoAsFolder(user, repoName, branch)
         .catch(helpers.error),
@@ -81,7 +81,7 @@ class AcodePlugin {
   async deleteGist() {
     await this.initFs();
     const gist = await new Promise((resolve) => {
-      pallete(
+      palette(
         this.listGists.bind(this, false),
         resolve,
         'Type to search gist',
@@ -100,7 +100,7 @@ class AcodePlugin {
   async deleteGistFile() {
     await this.initFs();
     const gist = await new Promise((resolve) => {
-      pallete(
+      palette(
         this.listGists.bind(this, false),
         resolve,
         'Type to search gist',
@@ -108,7 +108,7 @@ class AcodePlugin {
     });
 
     const file = await new Promise((resolve) => {
-      pallete(
+      palette(
         this.listGistFiles.bind(this, gist, false),
         resolve,
         'Type to search file',
@@ -172,7 +172,7 @@ class AcodePlugin {
     await this.initFs();
     this.token = await this.getToken();
 
-    pallete(
+    palette(
       this.listGists.bind(this),
       this.openGistFile.bind(this),
       'Type to search gist',
@@ -235,7 +235,7 @@ class AcodePlugin {
       helpers.removeTitleLoader();
     } else {
       await new Promise((resolve) => {
-        pallete(
+        palette(
           this.listGistFiles.bind(this, gist),
           async (file) => {
             if (file === this.NEW) {

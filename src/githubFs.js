@@ -88,7 +88,14 @@ export default function githubFs(token, settings) {
    */
   async function getCommitMessage(message) {
     if (settings.askCommitMessage) {
-      return await prompt('Commit message', message, 'text');
+      const res = await prompt('Commit message', message, 'text');
+      if (!res) {
+        const error = new Error('Commit aborted');
+        error.code = 0;
+        error.toString = () => error.message;
+        throw error;
+      }
+      return res;
     }
     return message;
   }
@@ -157,6 +164,7 @@ export default function githubFs(token, settings) {
       async writeFile(data) {
         if (!path) throw new Error('Cannot write to root directory')
         const commitMessage = await getCommitMessage(`update ${path}`);
+        if (!commitMessage) return;
         await init();
         await repo.writeFile(branch, path, data, commitMessage);
       },
@@ -176,6 +184,7 @@ export default function githubFs(token, settings) {
         }
 
         const commitMessage = await getCommitMessage(`create ${newPath}`);
+        if (!commitMessage) return;
         await repo.writeFile(branch, newPath, data, commitMessage);
         return githubFs.constructUrl('repo', user, repoName, newPath, branch);
       },
@@ -196,6 +205,7 @@ export default function githubFs(token, settings) {
 
         const createPath = Url.join(newPath, '.gitkeep');
         const commitMessage = await getCommitMessage(`create ${newPath}`);
+        if (!commitMessage) return;
         await repo.writeFile(branch, createPath, '', commitMessage);
         return githubFs.constructUrl('repo', user, repoName, newPath, branch);
       },
@@ -207,6 +217,7 @@ export default function githubFs(token, settings) {
         await init();
         await getSha();
         const commitMessage = await getCommitMessage(`delete ${path}`);
+        if (!commitMessage) return;
         await repo.deleteFile(branch, path, commitMessage, sha);
       },
       async moveTo(dest) {
