@@ -4,12 +4,14 @@ import githubFs from './githubFs';
 
 const prompt = acode.require('prompt');
 const confirm = acode.require('confirm');
-const palette = acode.require('pallete');
+const palette = acode.require('palette') || acode.require('pallete');
 const helpers = acode.require('helpers');
 const multiPrompt = acode.require('multiPrompt');
 const openFolder = acode.require('openFolder');
 const EditorFile = acode.require('EditorFile');
 const appSettings = acode.require('settings');
+const toast = acode.require('toast');
+const fsOperation = acode.require('fsOperation');
 
 if (!Blob.prototype.arrayBuffer) {
   Blob.prototype.arrayBuffer = function () {
@@ -36,6 +38,28 @@ class AcodePlugin {
 
     this.token = localStorage.getItem('github-token');
     await this.initFs();
+
+    tutorial(plugin.id, (hide) => {
+      const commands = editorManager.editor.commands.byName;
+      const openCommandPalette = commands.openCommandPalette || commands.openCommandPallete;
+      const message = "Github plugin is installed successfully, open command palette and search 'open repository' to open a github repository.";
+      let key = 'Ctrl+Shift+P';
+      if (openCommandPalette) {
+        key = openCommandPalette.bindKey.win;
+      }
+
+      if (!key) {
+        const onclick = async () => {
+          const EditorFile = acode.require('EditorFile');
+          const fileInfo = await fsOperation(KEYBINDING_FILE).stat();
+          new EditorFile(fileInfo.name, { uri: KEYBINDING_FILE, render: true });
+          hide();
+        };
+        return <p>{message} Shortcut to open command pallete is not set, <span className='link' onclick={onclick}>Click here</span> set shortcut or use '...' icon in quick tools.</p>
+      }
+
+      return <p>{message} To open command palette use combination {key} or use '...' icon in quick tools.</p>;
+    });
   }
 
   async initFs() {
@@ -373,7 +397,7 @@ class AcodePlugin {
 
     if (showAddNew) {
       list.push({
-        text: this.#highlitedText('New gist'),
+        text: this.#highlightedText('New gist'),
         value: this.NEW,
       });
     }
@@ -405,7 +429,7 @@ class AcodePlugin {
 
     if (showAddNew) {
       list.push({
-        text: this.#highlitedText('New file'),
+        text: this.#highlightedText('New file'),
         value: this.NEW,
       });
     }
@@ -413,7 +437,7 @@ class AcodePlugin {
     return list;
   }
 
-  #highlitedText(text) {
+  #highlightedText(text) {
     return `<span style='text-transform: uppercase; color: var(--popup-active-color)'>${text}</span>`;
   }
 
@@ -506,6 +530,24 @@ class AcodePlugin {
       }
     }
   }
+}
+
+/**
+ * Create a toast message
+ * @param {string} id 
+ * @param {string|HTMLElement|(hide: ()=>void)=>HTMLElement} message 
+ * @returns 
+ */
+function tutorial(id, message) {
+  if (!toast) return;
+  if (localStorage.getItem(id) === 'true') return;
+  localStorage.setItem(id, 'true');
+
+  if (typeof message === 'function') {
+    message = message(toast.hide);
+  }
+
+  toast(message, false, '#17c', '#fff');
 }
 
 if (window.acode) {
