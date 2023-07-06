@@ -12,7 +12,7 @@ Access your gist/repositories without cloning/downloading it. To access search `
 
 ## Updates
 
-- **1.2.0**
+- **1.2.1**
   - Upload non text file using 'insert-file' option.
   - Updated api according to latest acode.
 - **1.1.3**

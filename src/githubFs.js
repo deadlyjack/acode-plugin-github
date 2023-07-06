@@ -250,7 +250,7 @@ export default function githubFs(token, settings) {
         return githubFs.constructUrl('repo', user, repoName, newPath, branch);
       },
       async copyTo(dest) {
-        throw new Error('Not implemented');
+        throw new Error('Not supported');
       },
       async delete() {
         if (!path) throw new Error('Cannot delete root');
@@ -261,19 +261,21 @@ export default function githubFs(token, settings) {
         await repo.deleteFile(branch, path, commitMessage, sha);
       },
       async moveTo(dest) {
-        if (!path) throw new Error('Cannot move root');
-        await init();
-        const { path: destPath } = parseUrl(dest);
-        const newName = Url.join(destPath, Url.basename(path));
-        const res = await move(newName);
-        return res;
+        throw new Error('Not supported');
+        // if (!path) throw new Error('Cannot move root');
+        // await init();
+        // const { path: destPath } = parseUrl(dest);
+        // const newName = Url.join(destPath, Url.basename(path));
+        // const res = await move(newName);
+        // return res;
       },
       async renameTo(name) {
-        if (!path) throw new Error('Cannot rename root');
-        await init();
-        const newName = Url.join(Url.dirname(path), name);
-        const res = await move(newName);
-        return res;
+        throw new Error('Not supported');
+        // if (!path) throw new Error('Cannot rename root');
+        // await init();
+        // const newName = Url.join(Url.dirname(path), name);
+        // const res = await move(newName);
+        // return res;
       },
       async exists() {
         if (!path) return true;
@@ -330,7 +332,7 @@ export default function githubFs(token, settings) {
 
     return {
       async lsDir() {
-        throw new Error('Not implemented');
+        throw new Error('Not supported');
       },
       async readFile(encoding) {
         await init();
@@ -377,22 +379,22 @@ export default function githubFs(token, settings) {
         });
       },
       async createFile(name, data) {
-        throw new Error('Not implemented');
+        throw new Error('Not supported');
       },
       async createDirectory() {
-        throw new Error('Not implemented');
+        throw new Error('Not supported');
       },
       async copyTo() {
-        throw new Error('Not implemented');
+        throw new Error('Not supported');
       },
       async delete() {
-        throw new Error('Not implemented');
+        throw new Error('Not supported');
       },
       async moveTo() {
-        throw new Error('Not implemented');
+        throw new Error('Not supported');
       },
       async renameTo() {
-        throw new Error('Not implemented');
+        throw new Error('Not supported');
       },
       async exists() {
         await init();
