@@ -2,9 +2,10 @@
   "id": "acode.plugin.github",
   "name": "Github",
   "main": "dist/main.js",
-  "version": "1.1.7",
+  "version": "1.2.0",
   "readme": "readme.md",
   "icon": "icon.png",
+  "minVersionCode": 292,
   "files": [],
   "author": {
     "name": "Ajit Kumar",

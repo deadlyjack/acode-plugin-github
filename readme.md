@@ -12,7 +12,14 @@ Access your gist/repositories without cloning/downloading it. To access search `
 
 ## Updates
 
-- **1.0.2**: Create/Delete file, directory in repository.
-- **1.0.3**: Bugs fixes.
-- **1.1.2**: Ask for commit message.
-- **1.1.3**: Updated to work with latest acode.
+- **1.2.0**
+  - Upload non text file using 'insert-file' option.
+  - Updated api according to latest acode.
+- **1.1.3**
+  - Updated to work with latest acode.
+- **1.1.2**
+  - Ask for commit message.
+- **1.0.3**
+  - Bugs fixes.
+- **1.0.2**
+  - Create/Delete file, directory in repository.

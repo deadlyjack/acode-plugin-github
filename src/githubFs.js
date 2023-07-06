@@ -1,10 +1,14 @@
 import GitHub from './GitHubAPI/GitHub';
 import { lookup } from 'mime-types';
+import Repository from './GitHubAPI/Repository';
+import Gist from './GitHubAPI/Gist';
 
-const fsOperation = acode.require('fsoperation');
 const Url = acode.require('url');
+const fsOperation = acode.require('fs') || acode.require('fsOperation');
 const helpers = acode.require('helpers');
 const prompt = acode.require('prompt');
+const encodings = acode.require('encodings');
+
 const test = (url) => /^gh:/.test(url);
 
 githubFs.remove = () => {
@@ -108,7 +112,9 @@ export default function githubFs(token, settings) {
    * @returns 
    */
   function readRepo(user, repoAtBranch, path) {
+    /**@type {GitHub} */
     let gh;
+    /**@type {Repository} */
     let repo;
     const [repoName, branch] = repoAtBranch.split('@');
     let sha = '';
@@ -156,23 +162,51 @@ export default function githubFs(token, settings) {
         data = await data.arrayBuffer();
 
         if (encoding) {
+          if (encodings?.decode) {
+            const decoded = await encodings.decode(data, encoding);
+            if (decoded) return decoded;
+          }
+
+          /**@deprecated just for backward compatibility */
           return helpers.decodeText(data, encoding);
         }
 
         return data;
       },
-      async writeFile(data) {
+      async writeFile(data, encoding) {
         if (!path) throw new Error('Cannot write to root directory')
         const commitMessage = await getCommitMessage(`update ${path}`);
         if (!commitMessage) return;
+
+        let encode = true;
+
+        if (encoding) {
+          if (data instanceof ArrayBuffer && encodings?.decode) {
+            data = await encodings.decode(data, encoding);
+          }
+
+          if (encoding && encodings?.encode) {
+            data = await encodings.encode(data, encoding);
+          }
+
+          if (data instanceof ArrayBuffer && encodings?.decode) {
+            data = await encodings.decode(data, encoding);
+          }
+        } else if (data instanceof ArrayBuffer) {
+          // convert to base64
+          data = await bufferToBase64(data);
+          encode = false;
+        }
+
         await init();
-        await repo.writeFile(branch, path, data, commitMessage);
+        await repo.writeFile(branch, path, data, commitMessage, { encode });
       },
       async createFile(name, data = '') {
         await init();
         const newPath = path === '' ? name : Url.join(path, name);
         // check if file exists
         let sha;
+        let encode = true;
         try {
           sha = await repo.getSha(branch, newPath);
         } catch (e) {
@@ -183,9 +217,15 @@ export default function githubFs(token, settings) {
           throw new Error('File already exists');
         }
 
+        if (data instanceof ArrayBuffer) {
+          // convert to base64
+          data = await bufferToBase64(data);
+          encode = false;
+        }
+
         const commitMessage = await getCommitMessage(`create ${newPath}`);
         if (!commitMessage) return;
-        await repo.writeFile(branch, newPath, data, commitMessage);
+        await repo.writeFile(branch, newPath, data, commitMessage, { encode });
         return githubFs.constructUrl('repo', user, repoName, newPath, branch);
       },
       async createDirectory(dirname) {
@@ -269,8 +309,11 @@ export default function githubFs(token, settings) {
   }
 
   function readGist(gistId, path) {
+    /**@type {string} */
     let file;
+    /**@type {GitHub} */
     let gh;
+    /**@type {Gist} */
     let gist;
     const getFile = async () => {
       if (!file) {
@@ -289,20 +332,42 @@ export default function githubFs(token, settings) {
       async lsDir() {
         throw new Error('Not implemented');
       },
-      async readFile(encoding, progress) {
+      async readFile(encoding) {
         await init();
         let { content: data } = await getFile();
         const textEncoder = new TextEncoder();
         data = textEncoder.encode(file.content);
 
         if (encoding) {
+          if (encodings?.decode) {
+            const decoded = await encodings.decode(data, encoding);
+            if (decoded) return decoded;
+          }
+
           return helpers.decodeText(data, encoding);
         }
 
         return data;
       },
-      async writeFile(data) {
+      async writeFile(data, encoding) {
         await init();
+
+        encoding = settings.value.defaultFileEncoding || 'utf-8';
+
+        if (encoding) {
+          if (data instanceof ArrayBuffer && encodings?.decode) {
+            data = await encodings.decode(data, encoding);
+          }
+
+          if (encoding && encodings?.encode) {
+            data = await encodings.encode(data, encoding);
+          }
+
+          if (data instanceof ArrayBuffer && encodings?.decode) {
+            data = await encodings.decode(data, encoding);
+          }
+        }
+
         await gist.update({
           files: {
             [path]: {
@@ -346,4 +411,20 @@ export default function githubFs(token, settings) {
       },
     }
   }
+}
+
+async function bufferToBase64(buffer) {
+  const blob = new Blob([buffer]);
+  const reader = new FileReader();
+
+  reader.readAsDataURL(blob);
+  return new Promise((resolve, reject) => {
+    reader.onloadend = () => {
+      // strip off the data: url prefix
+      const content = reader.result.slice(reader.result.indexOf(',') + 1);
+      resolve(content);
+    };
+
+    reader.onerror = reject;
+  });
 }
