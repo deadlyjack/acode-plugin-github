@@ -131,14 +131,6 @@ export default function githubFs(token, settings) {
       repo = gh.getRepo(user, repoName);
     }
 
-    const move = async (dest) => {
-      const newUrl = githubFs.constructUrl('repo', user, repoName, dest, branch);
-      if (dest === path) return newUrl;
-      if (dest.startsWith('/')) dest = dest.slice(1);
-      await repo.move(branch, path, dest);
-      return newUrl;
-    }
-
     return {
       async lsDir() {
         await init();
@@ -334,21 +326,9 @@ export default function githubFs(token, settings) {
       async lsDir() {
         throw new Error('Not supported');
       },
-      async readFile(encoding) {
+      async readFile() {
         await init();
-        let { content: data } = await getFile();
-        const textEncoder = new TextEncoder();
-        data = textEncoder.encode(file.content);
-
-        if (encoding) {
-          if (encodings?.decode) {
-            const decoded = await encodings.decode(data, encoding);
-            if (decoded) return decoded;
-          }
-
-          return helpers.decodeText(data, encoding);
-        }
-
+        const { content: data } = await getFile();
         return data;
       },
       async writeFile(data, encoding) {
