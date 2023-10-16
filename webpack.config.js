@@ -1,8 +1,14 @@
 const { exec } = require('child_process');
+const fs = require('fs');
 const path = require('path');
 
 module.exports = (env, options) => {
   const { mode = 'development' } = options;
+
+  if (mode === 'production') {
+    fs.rmdirSync(path.resolve(__dirname, 'dist'), { recursive: true });
+  }
+
   const rules = [
     {
       test: /\.m?js$/,
